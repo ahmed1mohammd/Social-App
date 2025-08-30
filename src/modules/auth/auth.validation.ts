@@ -44,8 +44,46 @@ export const refreshToken = {
   }),
 };
 
+export const logout = {
+  body: z.object({}).optional(),
+};
+
+export const googleSignup = {
+  body: z.object({
+    idToken: z.string({error: "Google ID token is required" }),
+  }),
+};
+
+export const googleLogin = {
+  body: z.object({
+    idToken: z.string({error: "Google ID token is required" }),
+  }),
+};
+
+export const forgotPassword = {
+  body: z.object({
+    email: z.string().email({ message: "Invalid email format" }),
+  }),
+};
+
+export const resetPassword = {
+  body: z.object({
+    email: z.string().email({ message: "Invalid email format" }),
+    otp: z.string().length(6, { message: "OTP must be 6 digits" }),
+    newPassword: z.string({error: "newPassword is required" })
+      .regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/, {
+        message: "Password must be ≥8, include uppercase, number, special",
+      }),
+    confirmPassword: z.string({error: "confirmPassword is required" }),
+  }).refine((d) => d.newPassword === d.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Password mismatch with confirmPassword",
+  }),
+};
+
 export const resendOtp = {
   body: z.object({
     email:z.string().email()
   }),
 };
+

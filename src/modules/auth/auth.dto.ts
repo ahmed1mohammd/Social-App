@@ -1,3 +1,10 @@
+import { Request } from "express";
+import { IUser } from "../../DB/model/user.model";
+
+export interface IRequest extends Request {
+  user?: IUser;
+}
+
 export interface ISignupinputDTO {
   fullName: string;
   email: string;
@@ -18,4 +25,31 @@ export interface IVerifyOtpDTO {
 
 export interface IRefreshTokenDTO {
   refreshToken: string;
+}
+
+export interface IForgotPasswordDTO {
+  email: string;
+}
+
+export interface IResetPasswordDTO {
+  email: string;
+  otp: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export interface IGoogleAuthDTO {
+  idToken: string;
+}
+
+export interface IGoogleSignupDTO {
+  idToken: string;
+}
+
+export interface IGoogleLoginDTO {
+  idToken: string;
+}
+
+export interface ILogoutDTO {
+  // No body needed - token comes from header
 }
