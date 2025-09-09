@@ -11,9 +11,11 @@
  import rateLimit from "express-rate-limit";
  import authController from './modules/auth/auth.controller'
  import userController from './modules/user/user.controller'
- import { globalErrorHanding } from './utils/response/error.response';
-
-
+ import { BadRequestException, globalErrorHanding } from './utils/response/error.response';
+import { creatGetPresignLink, deleteFile, getFile } from './utils/multer/s3.config';
+import { promisify } from 'node:util';
+import { pipeline } from 'node:stream';
+ const createS3WriteStream = promisify(pipeline);
 
 
 
@@ -40,6 +42,43 @@ app.get("/" ,(req:Request, res:Response)=>{
     //Modules
 app.use("/auth", authController)
 app.use("/user", userController)
+
+//test=>S3
+app.get("/test", async (req:Request, res:Response)=>{
+    const {Key} = req.query as {Key:string};
+    const result = await deleteFile({ Key });
+    return res.json({message:"Deleted Done",data:{result}})
+})
+
+
+app.get("/upload/pre-signed/*path", 
+    async(req:Request, res:Response):Promise<Response> =>{
+        const {downloadName,download="false"}= req.query as {download?:string;downloadName?:string}
+    const {path} = req.params as unknown as {path:string[]}
+    const Key = path.join("/")
+    const url = await creatGetPresignLink({ Key,downloadName:downloadName as string,download });
+    return res.json({message:"done", data:{url}})
+})
+
+app.get("/upload/*path", async (req:Request, res:Response):Promise<void> =>{
+    const {path} = req.params as unknown as {path:string[]}
+    const Key = path.join("/")
+    const s3Response = await getFile({ Key });
+    console.log(s3Response.Body);
+    
+    if (!s3Response?.Body) {
+        throw new BadRequestException("fail to get file from s3")
+    }
+    res.setHeader("Content-Disposition", `"attachment; filename="${Key.split("/").pop()}"`)
+    res.setHeader("Content-Type", s3Response.ContentType as string)
+    return await createS3WriteStream(s3Response.Body as NodeJS.ReadableStream, res)
+})
+
+
+
+
+
+
 
     //In-vailed routing
 app.use("{/*dummy}",(req:Request, res:Response)=>

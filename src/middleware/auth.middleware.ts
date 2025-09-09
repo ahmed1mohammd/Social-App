@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import { IRequest } from "../modules/auth/auth.dto";
 import { verifyAccessToken, getTokenTypeFromHeader } from "../utils/security/token.security";
 import UserModel from "../DB/model/user.model";
-import RevokedTokenModel from "../DB/model/revoked-token.model";
+// import RevokedTokenModel from "../DB/model/revoked-token.model";
 import { UnauthorizedException } from "../utils/response/error.response";
 
 export const authenticate = async (

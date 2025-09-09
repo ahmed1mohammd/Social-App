@@ -23,7 +23,7 @@ export const generateAccessToken = (payload: ITokenPayload): string => {
     : process.env.ACCESS_TOKEN_SECRET as Secret;
   
   return jwt.sign(payload, secret, {
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRE || "15m",
+    expiresIn: process.env.ACCESS_TOKEN_EXPIRE || "120m",
   } as SignOptions);
 };
 

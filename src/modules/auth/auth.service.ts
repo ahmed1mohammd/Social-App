@@ -225,7 +225,7 @@ class AuthenticationService {
         role: "user",
         isVerified: true,
         googleId,
-        avatar: picture || null,
+        profileimage: picture || null,
       });
 
       const tokenId = generateTokenId();
@@ -288,10 +288,9 @@ class AuthenticationService {
         throw new BadRequestException("This email is registered with regular password. Please use regular login.");
       }
 
-      // Update Google info if needed
+      
       if (user.googleId !== googleId) {
         user.googleId = googleId;
-        user.avatar = picture || null;
         await user.save();
       }
 

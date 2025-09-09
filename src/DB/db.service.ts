@@ -27,6 +27,10 @@ export class DbService<T extends Document> {
     return await this.model.findByIdAndUpdate(id, data, { new: true }).exec();
   }
 
+ async findOneAndUpdate(query: object, data: Partial<T>): Promise<T | null> {
+    return await this.model.findOneAndUpdate(query, data, { new: true }).exec();
+  }
+      
   async delete(id: string): Promise<T | null> {
     return await this.model.findByIdAndDelete(id).exec();
   }

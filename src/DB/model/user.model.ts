@@ -1,4 +1,5 @@
 import mongoose, { Types, Schema, Document } from "mongoose";
+import { encryptPhone, decryptPhone, isEncryptedPhone } from "../../utils/security/phone.encryption";
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -13,7 +14,14 @@ export interface IUser extends Document {
   refreshToken?: string | null;
   refreshTokenId?: string | null;
   googleId?: string | null;
-  avatar?: string | null;
+  profileimage?:string,
+  profileCoverimage?:string[],
+  Tempprofileimage?:string,
+  isDeleted?: boolean;
+  deletedAt?: Date | null;
+  getDecryptedPhone(): string;
+  
+
 }
 
 const userSchema = new Schema<IUser>(
@@ -29,10 +37,39 @@ const userSchema = new Schema<IUser>(
     refreshToken: { type: String, default: null },
     refreshTokenId: { type: String, default: null },
     googleId: { type: String, default: null },
-    avatar: { type: String, default: null },
+    profileimage:{type:String,default:null},
+    profileCoverimage:[String],
+    Tempprofileimage:{type:String,default:null},
+    isDeleted:{type:Boolean,default:false},
+    deletedAt:{type:Date,default:null}
+
+
+ 
   },
   { timestamps: true }
 );
+
+userSchema.pre("save", function(next) {
+  if (this.isModified("phone") && !isEncryptedPhone(this.phone)) {
+    this.phone = encryptPhone(this.phone);
+  }
+  next();
+});
+
+userSchema.methods.getDecryptedPhone = function(): string {
+  if (isEncryptedPhone(this.phone)) {
+    return decryptPhone(this.phone);
+  }
+  return this.phone;
+};
+
+userSchema.methods.toJSON = function() {
+  const userObject = this.toObject();
+  if (userObject.phone && isEncryptedPhone(userObject.phone)) {
+    userObject.phone = decryptPhone(userObject.phone);
+  }
+  return userObject;
+};
 
 const UserModel = mongoose.model<IUser>("User", userSchema);
 export default UserModel;
