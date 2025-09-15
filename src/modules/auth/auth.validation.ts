@@ -87,3 +87,17 @@ export const resendOtp = {
   }),
 };
 
+export const updateEmailRequest = {
+  body: z.object({
+    newEmail: z.string({ error: "newEmail is required" })
+      .email({ message: "Invalid email format" }),
+  }),
+};
+
+export const confirmUpdateEmail = {
+  body: z.object({
+    otp: z.string({ error: "otp is required" })
+      .length(6, { message: "OTP must be 6 digits" }),
+  }),
+};
+

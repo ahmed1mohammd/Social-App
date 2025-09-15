@@ -51,5 +51,5 @@ export interface IGoogleLoginDTO {
 }
 
 export interface ILogoutDTO {
-  // No body needed - token comes from header
+
 }

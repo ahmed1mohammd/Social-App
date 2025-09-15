@@ -9,16 +9,17 @@
  import cors from 'cors';
  import helmet from "helmet";
  import rateLimit from "express-rate-limit";
- import authController from './modules/auth/auth.controller'
- import userController from './modules/user/user.controller'
  import { BadRequestException, globalErrorHanding } from './utils/response/error.response';
-import { creatGetPresignLink, deleteFile, getFile } from './utils/multer/s3.config';
-import { promisify } from 'node:util';
-import { pipeline } from 'node:stream';
+ import { creatGetPresignLink, getFile } from './utils/multer/s3.config';
+ import { promisify } from 'node:util';
+ import { pipeline } from 'node:stream';
+
+ import {authRouter,userRouter,postRouter} from "./modules/index"
+
+
+
+
  const createS3WriteStream = promisify(pipeline);
-
-
-
 const bootstrap = ():void=>{
 const app: Express = express();
 const port: number | string = process.env.PORT||5000
@@ -32,23 +33,16 @@ const Limiter = rateLimit({
     limit:2000,
     message:{error:"Too many request please try again later 👍"},
     statusCode:429
-    })
-    app.use(Limiter);
-
+})
+app.use(Limiter);
 //App-Routing
 app.get("/" ,(req:Request, res:Response)=>{
         res.json({message: `wellcome to ${process.env.APPLICATOIN_NAME} backend landing page 🤖❤️`})
-    })
-    //Modules
-app.use("/auth", authController)
-app.use("/user", userController)
-
-//test=>S3
-app.get("/test", async (req:Request, res:Response)=>{
-    const {Key} = req.query as {Key:string};
-    const result = await deleteFile({ Key });
-    return res.json({message:"Deleted Done",data:{result}})
 })
+//Modules
+app.use("/auth", authRouter)
+app.use("/user", userRouter)
+app.use("/post", postRouter)
 
 
 app.get("/upload/pre-signed/*path", 

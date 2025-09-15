@@ -17,13 +17,13 @@ export const generateAccessToken = (payload: ITokenPayload): string => {
   if (!process.env.ACCESS_TOKEN_SECRET || !process.env.ADMIN_TOKEN_SECRET) {
     throw new Error("Token secrets not configured");
   }
-  
+
   const secret = payload.role === "Admin" 
     ? process.env.ADMIN_TOKEN_SECRET as Secret 
     : process.env.ACCESS_TOKEN_SECRET as Secret;
-  
+
   return jwt.sign(payload, secret, {
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRE || "120m",
+    expiresIn: process.env.ACCESS_EXPIRES_IN || "120m",
   } as SignOptions);
 };
 
@@ -33,7 +33,7 @@ export const generateRefreshToken = (payload: IRefreshTokenPayload): string => {
   }
   
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET as Secret, {
-    expiresIn: process.env.REFRESH_TOKEN_EXPIRE || "7d",
+    expiresIn: process.env.REFRESH_EXPIRES_IN || "365d",
   } as SignOptions);
 };
 
@@ -42,9 +42,9 @@ export const verifyAccessToken = (token: string, isAdmin: boolean = false): ITok
     const secret = isAdmin 
       ? process.env.ADMIN_TOKEN_SECRET as string 
       : process.env.ACCESS_TOKEN_SECRET as string;
-    
+
     return jwt.verify(token, secret) as ITokenPayload;
-  } catch {
+  } catch (err) {
     return null;
   }
 };
@@ -72,11 +72,24 @@ export const decodeToken = (token: string): JwtPayload | null => {
   }
 };
 
-export const getTokenTypeFromHeader = (authHeader: string): { token: string; isAdmin: boolean } => {
-  if (authHeader.startsWith("Bearer ")) {
-    return { token: authHeader.substring(7), isAdmin: false };
-  } else if (authHeader.startsWith("System ")) {
-    return { token: authHeader.substring(7), isAdmin: true };
+export const getTokenTypeFromHeader = (
+  authHeader: string
+):
+
+{ token: string; isAdmin: boolean } => {
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2) {
+    return { token: "", isAdmin: false };
   }
+
+  const scheme = parts[0] || "";
+  const token = parts[1] || "";
+
+  if (/^Bearer$/i.test(scheme)) {
+    return { token, isAdmin: false };
+  } else if (/^System$/i.test(scheme)) {
+    return { token, isAdmin: true };
+  }
+
   return { token: "", isAdmin: false };
 };

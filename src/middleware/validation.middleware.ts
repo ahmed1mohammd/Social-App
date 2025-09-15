@@ -13,12 +13,21 @@ export const validation = (schema: SchemaType) => {
         key:  KeyReqType;
         issues:Array<{
             message:string,
-            path:number|string|symbol|undefined
+            path:(number|string|symbol|undefined)[];
         }>
     }> = [];
 
     for (const key of Object.keys(schema) as KeyReqType[]) {
       if (!schema[key]) continue;
+      if (req.file) {
+        req.body.attachment= req.file
+      }
+
+      if (req.files) {
+        
+        
+        req.body.attachments= req.files
+      } 
 
       const validationResult = schema[key]!.safeParse(req[key]);
 
@@ -26,7 +35,7 @@ export const validation = (schema: SchemaType) => {
         const errors = validationResult.error as ZodError;
 
         validationErrors.push({ key, issues: errors.issues.map((issue)=>{
-            return {message: issue.message,path: issue.path[0]}
+            return {message: issue.message,path: issue.path}
         }) });
       }
     }
@@ -39,4 +48,6 @@ export const validation = (schema: SchemaType) => {
 
     return next() as unknown as NextFunction;
   };
+    
+
 };

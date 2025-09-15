@@ -1,8 +1,8 @@
-
 import authService from './auth.service'
 import { Router } from "express";
 import * as validators from './auth.validation'
 import { validation } from '../../middleware/validation.middleware';
+import { authenticate } from "../../middleware/auth.middleware";
 
 
 const router = Router()
@@ -17,5 +17,7 @@ router.post("/google-login", validation(validators.googleLogin), authService.goo
 router.post("/forgot-password", validation(validators.forgotPassword), authService.forgotPassword);
 router.post("/reset-password", validation(validators.resetPassword), authService.resetPassword);
 router.post("/resend-otp", validation(validators.resendOtp), authService.resendOtp);
+router.post("/update-email-request",authenticate, validation(validators.updateEmailRequest), authService.updateEmailRequest);
+router.post("/confirm-update-email", authenticate, validation(validators.confirmUpdateEmail), authService.confirmUpdateEmail);
 
 export default router

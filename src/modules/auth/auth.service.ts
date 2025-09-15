@@ -74,7 +74,7 @@ class AuthenticationService {
     return res.status(200).json({ message: "Email verified successfully" });
   };
 
-  login = async (req: Request, res: Response): Promise<Response> => {
+login = async (req: Request, res: Response): Promise<Response> => {
     const { email, password }: ILogininputDTO = req.body;
 
     const user = await UserModel.findOne({ email });
@@ -112,7 +112,7 @@ class AuthenticationService {
       },
     });
   };
-
+  
   refresh = async (req: Request, res: Response): Promise<Response> => {
     const { refreshToken }: IRefreshTokenDTO = req.body;
 
@@ -275,7 +275,7 @@ class AuthenticationService {
       const payload = await ticket.getPayload();
       if (!payload) throw new UnauthorizedException("Invalid Google token");
 
-      const { email, picture, sub: googleId } = payload;
+      const { email, sub: googleId } = payload;
       if (!email) throw new UnauthorizedException("Email not found in Google token");
 
       const user = await UserModel.findOne({ email });
@@ -402,6 +402,71 @@ class AuthenticationService {
 
     return res.status(200).json({ message: "OTP resent successfully" });
   };
+
+ 
+updateEmailRequest = async (req: Request, res: Response): Promise<Response> => {
+  const user = (req as any).user;
+
+  if (!user || !user.id) {
+    throw new UnauthorizedException("User not authenticated or session invalid");
+  }
+
+  const { newEmail } = req.body as { newEmail: string };
+  const userId = user.id;
+
+  const existing = await UserModel.findOne({ email: newEmail });
+  if (existing) throw new BadRequestException("Email already in use");
+
+  const userRecord = await UserModel.findById(userId);
+  if (!userRecord) throw new BadRequestException("User not found");
+
+  const otp = generateOtp();
+  const otpHash = await generateHash({ plaintext: otp });
+
+  userRecord.pendingEmail = newEmail;
+  userRecord.emailOTP = otpHash;
+  userRecord.emailOTPExpires = otpExpiryDate();
+  await userRecord.save();
+
+  await sendEmail(
+    newEmail,
+    "Confirm your new email",
+    emailTemplates.verifyOtp(otp, userRecord.fullName)
+  );
+
+  return res.status(200).json({
+    message: "OTP sent to new email. Please verify to update your email.",
+  });
+};
+
+
+confirmUpdateEmail = async (req: Request, res: Response): Promise<Response> => {
+  const { otp } = req.body as { otp: string };
+  const userId = (req as any).user.id; 
+
+  const user = await UserModel.findById(userId);
+  if (!user) throw new BadRequestException("User not found");
+
+  if (!user.pendingEmail || !user.emailOTP || !user.emailOTPExpires) {
+    throw new BadRequestException("No email update request found");
+  }
+
+  if (user.emailOTPExpires < new Date()) {
+    throw new UnauthorizedException("OTP expired");
+  }
+
+  const ok = await compareHash({ plaintext: otp, hashValue: user.emailOTP });
+  if (!ok) throw new UnauthorizedException("Invalid OTP");
+
+  user.email = user.pendingEmail;
+  user.pendingEmail = null;
+  user.emailOTP = null;
+  user.emailOTPExpires = null;
+  await user.save();
+
+  return res.status(200).json({ message: "Email updated successfully" });
+};
+
 }
 
 export default new AuthenticationService();
