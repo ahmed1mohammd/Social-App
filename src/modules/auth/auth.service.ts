@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import {ISignupinputDTO,ILogininputDTO,IVerifyOtpDTO,IRefreshTokenDTO,IForgotPasswordDTO,IResetPasswordDTO,IGoogleSignupDTO,IGoogleLoginDTO,} from "./auth.dto";
+import {ISignupinputDTO,IVerifyOtpDTO,IRefreshTokenDTO,IForgotPasswordDTO,IResetPasswordDTO,IGoogleSignupDTO,IGoogleLoginDTO,} from "./auth.dto";
 import UserModel from "../../DB/model/user.model";
 import RevokedTokenModel from "../../DB/model/revoked-token.model";
 import { generateHash, compareHash } from "../../utils/security/hashing.security";
@@ -42,7 +42,7 @@ class AuthenticationService {
     user.otpExpires = otpExpiryDate();
     await user.save();
 
-    await sendEmail(
+     sendEmail(
       user.email,
       "Verify your email",
       emailTemplates.verifyOtp(otp, user.fullName)
@@ -72,45 +72,6 @@ class AuthenticationService {
     await user.save();
 
     return res.status(200).json({ message: "Email verified successfully" });
-  };
-
-login = async (req: Request, res: Response): Promise<Response> => {
-    const { email, password }: ILogininputDTO = req.body;
-
-    const user = await UserModel.findOne({ email });
-    if (!user) throw new UnauthorizedException("Invalid email or password");
-
-    const match = await compareHash({ plaintext: password, hashValue: user.password });
-    if (!match) throw new UnauthorizedException("Invalid email or password");
-
-    if (!user.isVerified) throw new UnauthorizedException("Please verify your email first");
-
-    const tokenId = generateTokenId();
-    const accessToken = generateAccessToken({ 
-      id: user._id.toString(), 
-      email: user.email, 
-      role: user.role 
-    });
-    const refreshToken = generateRefreshToken({ id: user._id.toString(), tokenId });
-
-    user.refreshToken = refreshToken;
-    user.refreshTokenId = tokenId;
-    await user.save();
-
-    await sendEmail(
-      user.email,
-      "Welcome back",
-      emailTemplates.welcomeAfterLogin(user.fullName)
-    );
-
-    return res.status(200).json({
-      message: "Login successful",
-      data: {
-        user: { id: user._id, fullName: user.fullName, email: user.email, role: user.role },
-        accessToken,
-        refreshToken,
-      },
-    });
   };
   
   refresh = async (req: Request, res: Response): Promise<Response> => {
@@ -337,7 +298,7 @@ login = async (req: Request, res: Response): Promise<Response> => {
     user.otpExpires = otpExpiryDate();
     await user.save();
 
-    await sendEmail(
+     sendEmail(
       user.email,
       "Reset your password",
       emailTemplates.resetPasswordOtp(otp, user.fullName)
@@ -394,7 +355,7 @@ login = async (req: Request, res: Response): Promise<Response> => {
     user.otpExpires = otpExpiryDate();
     await user.save();
 
-    await sendEmail(
+     sendEmail(
       user.email,
       "Verify your email (OTP)",
       emailTemplates.verifyOtp(otp, user.fullName)
@@ -403,8 +364,7 @@ login = async (req: Request, res: Response): Promise<Response> => {
     return res.status(200).json({ message: "OTP resent successfully" });
   };
 
- 
-updateEmailRequest = async (req: Request, res: Response): Promise<Response> => {
+  updateEmailRequest = async (req: Request, res: Response): Promise<Response> => {
   const user = (req as any).user;
 
   if (!user || !user.id) {
@@ -428,7 +388,7 @@ updateEmailRequest = async (req: Request, res: Response): Promise<Response> => {
   userRecord.emailOTPExpires = otpExpiryDate();
   await userRecord.save();
 
-  await sendEmail(
+   sendEmail(
     newEmail,
     "Confirm your new email",
     emailTemplates.verifyOtp(otp, userRecord.fullName)
@@ -437,10 +397,9 @@ updateEmailRequest = async (req: Request, res: Response): Promise<Response> => {
   return res.status(200).json({
     message: "OTP sent to new email. Please verify to update your email.",
   });
-};
+  };
 
-
-confirmUpdateEmail = async (req: Request, res: Response): Promise<Response> => {
+  confirmUpdateEmail = async (req: Request, res: Response): Promise<Response> => {
   const { otp } = req.body as { otp: string };
   const userId = (req as any).user.id; 
 
@@ -465,7 +424,156 @@ confirmUpdateEmail = async (req: Request, res: Response): Promise<Response> => {
   await user.save();
 
   return res.status(200).json({ message: "Email updated successfully" });
+  };
+  
+   requestEnable2FA = async (req: Request, res: Response): Promise<Response> => {
+    const userId = (req as any).user?.id;
+    if (!userId) throw new UnauthorizedException("User not authenticated");
+
+    const user = await UserModel.findById(userId);
+    if (!user) throw new BadRequestException("User not found");
+
+    const otp = generateOtp();
+    const otpHash = await generateHash({ plaintext: otp });
+
+    user.twoStepOtpHash = otpHash;
+    user.twoStepOtpExpires = otpExpiryDate();
+    await user.save();
+
+    await sendEmail(
+      user.email,
+      "Enable 2-Step Verification",
+      emailTemplates.twoStepEnableOtp(otp, user.fullName)
+    );
+
+    return res.status(200).json({ message: "OTP sent to your email" });
+  };
+  
+   verifyEnable2FA = async (req: Request, res: Response): Promise<Response> => {
+    const userId = (req as any).user?.id;
+    const { otp } = req.body as { otp: string };
+
+    const user = await UserModel.findById(userId);
+    if (!user) throw new BadRequestException("User not found");
+
+    if (!user.twoStepOtpHash || !user.twoStepOtpExpires) {
+      throw new BadRequestException("No OTP request found");
+    }
+    if (user.twoStepOtpExpires < new Date()) {
+      throw new UnauthorizedException("OTP expired");
+    }
+
+    const ok = await compareHash({ plaintext: otp, hashValue: user.twoStepOtpHash });
+    if (!ok) throw new UnauthorizedException("Invalid OTP");
+
+    user.twoStepEnabled = true;
+    user.twoStepOtpHash = null;
+    user.twoStepOtpExpires = null;
+    await user.save();
+
+    return res.status(200).json({ message: "2FA enabled successfully" });
+  };
+
+  loginWith2FA = async (req: Request, res: Response): Promise<Response> => {
+    const { email, password } = req.body;
+
+    const user = await UserModel.findOne({ email });
+    if (!user) throw new UnauthorizedException("Invalid email or password");
+
+    const match = await compareHash({ plaintext: password, hashValue: user.password });
+    if (!match) throw new UnauthorizedException("Invalid email or password");
+
+    if (user.twoStepEnabled) {
+      const otp = generateOtp();
+      const otpHash = await generateHash({ plaintext: otp });
+      user.twoStepOtpHash = otpHash;
+      user.twoStepOtpExpires = otpExpiryDate();
+      await user.save();
+
+      await sendEmail(
+        user.email,
+        "Login Verification",
+        emailTemplates.twoStepLoginOtp(otp, user.fullName)
+      );
+
+      return res.status(200).json({ message: "OTP sent to email for login verification" });
+    }
+
+    
+    const tokenId = generateTokenId();
+    const accessToken = generateAccessToken({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    });
+    const refreshToken = generateRefreshToken({
+      id: user._id.toString(),
+      tokenId,
+    });
+
+    user.refreshToken = refreshToken;
+    user.refreshTokenId = tokenId;
+    await user.save();
+
+      sendEmail(
+      user.email,
+      "Welcome back",
+      emailTemplates.welcomeAfterLogin(user.fullName)
+    );
+
+    return res.status(200).json({
+      message: "Login successful",
+      data: { accessToken, refreshToken },
+    });
+  };
+
+  verifyLoginOtp = async (req: Request, res: Response): Promise<Response> => {
+    const { email, otp } = req.body as { email: string; otp: string };
+
+    const user = await UserModel.findOne({ email });
+    if (!user) throw new BadRequestException("User not found");
+
+    if (!user.twoStepOtpHash || !user.twoStepOtpExpires) {
+      throw new BadRequestException("No OTP request found");
+    }
+    if (user.twoStepOtpExpires < new Date()) {
+      throw new UnauthorizedException("OTP expired");
+    }
+
+    const ok = await compareHash({ plaintext: otp, hashValue: user.twoStepOtpHash });
+    if (!ok) throw new UnauthorizedException("Invalid OTP");
+
+    user.twoStepOtpHash = null;
+    user.twoStepOtpExpires = null;
+    await user.save();
+
+    const tokenId = generateTokenId();
+    const accessToken = generateAccessToken({
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    });
+    const refreshToken = generateRefreshToken({
+      id: user._id.toString(),
+      tokenId,
+    });
+
+    user.refreshToken = refreshToken;
+    user.refreshTokenId = tokenId;
+    await user.save();
+
+  sendEmail(
+      user.email,
+      "Welcome back",
+      emailTemplates.welcomeAfterLogin(user.fullName)
+    );
+  return res.status(200).json({
+    message: "Login successful with 2FA",
+    data: { accessToken, refreshToken },
+  });
 };
+
+
 
 }
 

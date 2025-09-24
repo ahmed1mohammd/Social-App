@@ -13,8 +13,8 @@
  import { creatGetPresignLink, getFile } from './utils/multer/s3.config';
  import { promisify } from 'node:util';
  import { pipeline } from 'node:stream';
-
  import {authRouter,userRouter,postRouter} from "./modules/index"
+import { friendRouter } from './modules/friend';
 
 
 
@@ -24,7 +24,8 @@ const bootstrap = ():void=>{
 const app: Express = express();
 const port: number | string = process.env.PORT||5000
 connectDB();
-app.use(express.json())
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(helmet());
 //rateLimting
@@ -40,6 +41,7 @@ app.get("/" ,(req:Request, res:Response)=>{
         res.json({message: `wellcome to ${process.env.APPLICATOIN_NAME} backend landing page 🤖❤️`})
 })
 //Modules
+app.use("/friend", friendRouter)
 app.use("/auth", authRouter)
 app.use("/user", userRouter)
 app.use("/post", postRouter)

@@ -22,8 +22,12 @@ export interface IUser extends Document {
   pendingEmail?: string | null;
   emailOTP?: string | null;
   emailOTPExpires?: Date | null;
-
-  getDecryptedPhone(): string;
+ twoStepEnabled?: boolean;
+ twoStepOtpHash?: string | null;
+ twoStepOtpExpires?: Date | null;
+ friends?: Types.ObjectId[];
+ 
+getDecryptedPhone(): string;
 }
 
 const userSchema = new Schema<IUser>(
@@ -46,7 +50,13 @@ const userSchema = new Schema<IUser>(
     deletedAt: { type: Date, default: null },
     pendingEmail: { type: String, default: null },
     emailOTP: { type: String, default: null },
-    emailOTPExpires: { type: Date, default: null }
+    emailOTPExpires: { type: Date, default: null },
+    twoStepEnabled: { type: Boolean, default: false },
+    twoStepOtpHash: { type: String, default: null },
+    twoStepOtpExpires: { type: Date, default: null },
+    friends: [{ type: Schema.Types.ObjectId, ref: "User" }]
+
+
   },
   { timestamps: true }
 );

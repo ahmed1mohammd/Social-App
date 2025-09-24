@@ -8,7 +8,7 @@ export enum AllowCommentsEnum {
 
 export enum AvailabilityEnum {
   PUBLIC = "public",
-  PRIVATE = "private",
+  ONLYME = "onlyme",
   FRIENDS = "friends",
 }
 
@@ -52,5 +52,10 @@ const postSchema = new Schema<IPost>(
     timestamps: true,
   }
 );
+postSchema.virtual("comments", {
+  ref: "comment",
+  localField: "_id",
+  foreignField: "postId",
+});
 
 export const PostModel = models.post || model<IPost>("Post", postSchema);

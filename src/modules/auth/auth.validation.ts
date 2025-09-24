@@ -101,3 +101,38 @@ export const confirmUpdateEmail = {
   }),
 };
 
+export const requestEnable2FA = {
+  body: z.object({
+    email: z.string({ error: "email is required" })
+      .email({ message: "Invalid email format" }),
+  }),
+};
+
+export const verifyEnable2FA = {
+  body: z.object({
+    otp: z.string({ error: "otp is required" })
+      .length(6, { message: "OTP must be 6 digits" }),
+  }),
+};
+
+export const loginWith2FA = {
+  body: z.object({
+    email: z.string({ error: "email is required" })
+      .email({ message: "Invalid email format" }),
+    password: z.string({ error: "password is required" })
+      .regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/, {
+        message: "Password must be ≥8, include uppercase, number, special",
+      }),
+  }),
+};
+
+export const verifyLoginOtp = {
+  body: z.object({
+    email: z.string({ error: "email is required" })
+      .email({ message: "Invalid email format" }),
+    otp: z.string({ error: "otp is required" })
+      .length(6, { message: "OTP must be 6 digits" }),
+  }),
+};
+
+

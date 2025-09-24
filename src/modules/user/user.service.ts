@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import { IRequest } from "../auth/auth.dto";
 import UserModel from "../../DB/model/user.model";
-import { BadRequestException, UnauthorizedException, ForbiddenException } from "../../utils/response/error.response";
+import { BadRequestException, UnauthorizedException, ForbiddenException, NotFoundException } from "../../utils/response/error.response";
 import { SuccessResponse } from "../../utils/response/success.response";
 import { creatPresignedUploadLink, uploadFiles } from "../../utils/multer/s3.config";
 import { s3Event } from "../../utils/multer/s3.event";
@@ -15,22 +15,31 @@ class UserService {
     }
   }
 
-    getProfile = async (req: IRequest, res: Response): Promise<Response> => {
-    if (!req.user) {
-      throw new UnauthorizedException("User not authenticated");
-    }
+  getProfile = async (req: IRequest, res: Response): Promise<Response> => {
+  if (!req.user) {
+    throw new UnauthorizedException("User not authenticated");
+  }
 
-    return SuccessResponse.ok(res, "Profile retrieved successfully", {
-        id: req.user._id,
-        fullName: req.user.fullName,
-        email: req.user.email,
-      phone: req.user.getDecryptedPhone(),
-        role: req.user.role,
-        isVerified: req.user.isVerified,
-        profileimage: req.user.profileimage,
-      profileCoverimage: req.user.profileCoverimage,
-    });
-  };
+ 
+  const user = await UserModel.findById(req.user._id)
+    .populate("friends", "fullName profileimage phone") 
+    .exec();
+
+  if (!user) throw new NotFoundException("User not found");
+
+  return SuccessResponse.ok(res, "Profile retrieved successfully", {
+    id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.getDecryptedPhone(),
+    role: user.role,
+    isVerified: user.isVerified,
+    profileimage: user.profileimage,
+    profileCoverimage: user.profileCoverimage,
+    friends: user.friends, 
+  });
+};
+
 
     imageProfile = async (req: IRequest, res: Response): Promise<Response> => {
     const { ContentType, originalname }: { ContentType: string, originalname: string } = req.body;

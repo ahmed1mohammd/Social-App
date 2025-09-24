@@ -1,4 +1,4 @@
-import { Model, Document, QueryOptions, PopulateOptions, ProjectionType, HydratedDocument } from "mongoose";
+import { Model, Document, PopulateOptions, ProjectionType,  } from "mongoose";
 
 export class DbService<T extends Document> {
   private model: Model<T>;
